@@ -54,6 +54,7 @@ def makePoint(key,flags,res):
     return point
     
 def rmBad(datapoints,badpoints):
+    #return 0
     print 'bad', len(badpoints)
     for key in badpoints:
         if key in datapoints:
@@ -180,7 +181,7 @@ def figurePDP(points,res,badpoints):
     prevDayNum = -1
     prevDayPwr = -1
     for key,point in points.iteritems():
-        prevDay = key.replace(day=(key.day-1),hour=0)
+        prevDay = (key-timedelta(days=1)).replace(hour=0)
         if prevDay.day == prevDayNum:
             point['pdp'] = prevDayPwr
         else:
@@ -239,28 +240,44 @@ def figureTSOnOff(points,res,badpoints):
                 lastOn += res
             except:
                 continue
-        points[key]['lastOn'] = lastOn
-        points[key]['lastOff'] = lastOff
+        if lastOn is None:
+            badpoints.append(key)
+        elif lastOff is None:
+            badpoints.append(key)
+        else:
+            points[key]['lastOn'] = lastOn
+            points[key]['lastOff'] = lastOff
     #rmBad(points,badpoints)
     
 def writeStatuses(fname,points,psum=False):
     outLines = []
+    outs = []
     for key in sorted(points[points.keys()[0]].keys()):
-        if not (key in ['pwravg','pwrsum','numpts','onoff']):
+#        if not (key in ['pwravg','pwrsum','numpts','onoff']):
+        if not (key in ['pwravg','pwrsum','numpts']):
             print key,
+            outs.append(key)
+    with open(fname,'w') as FILE:
+        FILE.write(','.join(outs))
+        FILE.write(',pwravg\n')
     print 'pwravg'
-    for key,point in points.iteritems():
+    for key in sorted(points.iterkeys()):
+    #for key in points.iterkeys():
         outLine = []
-        for k in sorted(point.keys()):
-            if not (k in ['pwravg','pwrsum','numpts','onoff']):
-                outLine.append(str(point[k]))
+        for k in sorted(points[key].keys()):
+            #if not (k in ['pwravg','pwrsum','numpts','onoff']):
+            if not (k in ['pwravg','pwrsum','numpts']):
+                if points[key][k] is None:
+                    outLine.append()
+                else:
+                    outLine.append(str(points[key][k]))
         if psum:
-            outLine.append(str(point['pwrsum']))
+            outLine.append(str(points[key]['pwrsum']))
         else:
-            outLine.append(str(point['pwravg']))
+            outLine.append(str(points[key]['pwravg']))
         outLines.append(','.join(outLine))
     print 'OL', len(outLines)
-    with open(fname,'w') as FILE:
+    with open(fname,'a') as FILE:
         FILE.write('\n'.join(outLines))
     
 def parse(rfname,wfname,flags=['d','h','hd','qd','php','pqp','tso','pHap','pdp']):
